@@ -601,17 +601,32 @@ st.markdown(
 st.markdown(
     """
     Peta di bawah ini menampilkan **sebaran kondisi tenaga kesehatan** di seluruh
-    kabupaten/kota Jawa Barat. Setiap wilayah diwarnai berdasarkan kelompok (klaster)
-    yang telah ditentukan dari hasil analisis data.
+    kabupaten/kota di Jawa Barat. Setiap wilayah dikelompokkan ke dalam klaster
+    berdasarkan kemiripan nilai rasio tenaga kesehatan per 100.000 penduduk
+    yang dihasilkan melalui metode **K-Means Clustering**.
+
+    Visualisasi ini membantu mengidentifikasi **pola ketimpangan distribusi tenaga kesehatan**
+    antar wilayah, sehingga dapat digunakan sebagai dasar dalam pengambilan keputusan
+    terkait pemerataan layanan kesehatan.
 
     **Cara membaca peta:**
-    - 🔴 **Merah** → Klaster Rendah
-    - 🟠 **Oranye** → Klaster Sedang
-    - 🟢 **Hijau** → Klaster Tinggi
-    - 🔵 **Biru** → Klaster Sangat Tinggi
-    - ⬜ **Abu-abu** → Data tidak tersedia untuk wilayah tersebut
+    - 🔴 **Merah (Klaster Rendah)** → Wilayah dengan **ketersediaan tenaga kesehatan rendah**
+      pada sebagian besar indikator (prioritas pemerataan)
+    - 🟠 **Oranye (Klaster Sedang)** → Wilayah dengan **ketimpangan parsial**, beberapa indikator
+      cukup namun sebagian masih kurang
+    - 🟢 **Hijau (Klaster Tinggi)** → Wilayah dengan **ketersediaan tenaga kesehatan relatif baik**
+      dan cukup merata
+    - 🔵 **Biru (Klaster Sangat Tinggi)** → Wilayah dengan **konsentrasi tenaga kesehatan sangat tinggi**
+      (potensi surplus relatif)
+    - ⬜ **Abu-abu** → Data tidak tersedia atau tidak teridentifikasi pada peta
 
-    💡 *Arahkan kursor ke wilayah untuk melihat nama dan klasternya.*
+    **Interpretasi penting:**
+    - Wilayah yang berdekatan dengan warna berbeda menunjukkan adanya **ketimpangan spasial**
+      dalam distribusi tenaga kesehatan
+    - Dominasi warna merah di suatu area menandakan **wilayah prioritas intervensi**
+    - Konsentrasi warna biru menunjukkan **penumpukan tenaga kesehatan di wilayah tertentu**
+
+    💡 *Arahkan kursor ke wilayah untuk melihat nama kabupaten/kota dan klasternya secara detail.*
     """
 )
 
@@ -1027,11 +1042,14 @@ with tab4:
 
         # ── [TAMBAHAN] Konteks kartu metrik ──
         st.markdown(
-            "Kartu-kartu di bawah menampilkan angka rasio untuk 6 jenis tenaga kesehatan utama. "
-            "Angka **hijau (↑)** berarti wilayah ini **sudah melampaui** standar nasional, "
-            "sedangkan angka **merah (↓)** berarti **masih di bawah** standar. "
-            "Tanda **Δ** (delta) menunjukkan selisih dari standar nasional."
-        )
+            "Kartu-kartu di bawah menampilkan angka rasio untuk 6 jenis tenaga kesehatan utama "
+            "pada wilayah yang dipilih, beserta perbandingannya dengan **standar nasional**.\n\n"
+            "**Cara membaca:**\n"
+            "- Angka utama menunjukkan rasio tenaga kesehatan di wilayah tersebut\n"
+            "- Nilai **standar (Standar)** ditampilkan sebagai acuan kebutuhan minimum\n"
+            "- **Hijau (↑)** berarti sudah **melampaui standar**\n"
+            "- **Merah (↓)** berarti **masih di bawah standar**"
+)
 
         # Metric per jenis nakes
         metrics = [
@@ -1050,11 +1068,11 @@ with tab4:
             # Format "Std:… | Δ…" tidak diawali "-" meski nilainya negatif,
             # sehingga warna selalu hijau. Solusi: gunakan delta_color="inverse"
             # saat delta negatif — Streamlit membalik warna menjadi merah.
-            delta_color = "normal" if delta >= 0 else "inverse"
+            delta_color = "normal"
             [c1, c2, c3][idx % 3].metric(
-                nama,
+                f"{nama} (Standar: {std_n})",
                 f"{val:.2f}",
-                f"Std:{std_n} | Δ{delta:+.2f}",
+                f"{delta:+.2f}",
                 delta_color=delta_color,
             )
 
