@@ -406,20 +406,6 @@ def _deteksi_key_nama(gj_data):
     return None
 
 
-@st.cache_data(show_spinner=False)
-def _buat_peta_html(_gj_json, _df_json):
-    """
-    Cache hasil render HTML peta agar tidak di-generate ulang setiap rerun.
-    Parameter di-serialize ke JSON supaya bisa di-hash oleh st.cache_data.
-    """
-    gj_data = json.loads(_gj_json)
-    df_kl   = pd.read_json(_df_json)
-    peta, info = _buat_peta(gj_data, df_kl)
-    if peta is None:
-        return None, info
-    return peta._repr_html_(), info
-
-
 def _buat_peta(gj_data, df_kl):
     name_key = _deteksi_key_nama(gj_data)
     if name_key is None:
@@ -564,22 +550,33 @@ if not _FOLIUM_OK:
         "```\npip install folium streamlit-folium requests\n```"
     )
 else:
-    with st.spinner("Memuat data peta Jawa Barat…"):
-        _gj_data, _gj_err = _muat_geojson()
+    # Generate HTML peta hanya sekali per sesi, simpan di session_state
+    if 'peta_html' not in st.session_state:
+        with st.spinner("Memuat data peta Jawa Barat…"):
+            _gj_data, _gj_err = _muat_geojson()
 
-    if _gj_err or _gj_data is None:
-        st.warning(_gj_err or "GeoJSON tidak dapat dimuat.")
-    else:
-        # Serialize ke JSON agar bisa di-cache oleh st.cache_data
-        _gj_json = json.dumps(_gj_data)
-        _df_json = df[[KOLOM_WILAYAH, 'label_cluster']].to_json()
-        _peta_html, _info = _buat_peta_html(_gj_json, _df_json)
-        if _peta_html is None:
-            st.warning(f"⚠️ {_info}")
+        if _gj_err or _gj_data is None:
+            st.session_state['peta_html'] = None
+            st.session_state['peta_info'] = _gj_err or "GeoJSON tidak dapat dimuat."
+            st.session_state['peta_err']  = True
         else:
-            if _info:
-                st.info(_info)
-            components.html(_peta_html, height=500, scrolling=False)
+            _peta, _info = _buat_peta(_gj_data, df)
+            if _peta is None:
+                st.session_state['peta_html'] = None
+                st.session_state['peta_info'] = _info
+                st.session_state['peta_err']  = True
+            else:
+                st.session_state['peta_html'] = _peta._repr_html_()
+                st.session_state['peta_info'] = _info
+                st.session_state['peta_err']  = False
+
+    # Tampilkan dari session_state (tidak generate ulang saat rerun)
+    if st.session_state.get('peta_err'):
+        st.warning(st.session_state.get('peta_info', 'Peta tidak dapat dimuat.'))
+    elif st.session_state.get('peta_html'):
+        if st.session_state.get('peta_info'):
+            st.info(st.session_state['peta_info'])
+        components.html(st.session_state['peta_html'], height=500, scrolling=False)
 
 st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
