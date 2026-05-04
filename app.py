@@ -406,6 +406,20 @@ def _deteksi_key_nama(gj_data):
     return None
 
 
+@st.cache_data(show_spinner=False)
+def _buat_peta_html(_gj_json, _df_json):
+    """
+    Cache hasil render HTML peta agar tidak di-generate ulang setiap rerun.
+    Parameter di-serialize ke JSON supaya bisa di-hash oleh st.cache_data.
+    """
+    gj_data = json.loads(_gj_json)
+    df_kl   = pd.read_json(_df_json)
+    peta, info = _buat_peta(gj_data, df_kl)
+    if peta is None:
+        return None, info
+    return peta._repr_html_(), info
+
+
 def _buat_peta(gj_data, df_kl):
     name_key = _deteksi_key_nama(gj_data)
     if name_key is None:
@@ -556,13 +570,16 @@ else:
     if _gj_err or _gj_data is None:
         st.warning(_gj_err or "GeoJSON tidak dapat dimuat.")
     else:
-        _peta, _info = _buat_peta(_gj_data, df)
-        if _peta is None:
+        # Serialize ke JSON agar bisa di-cache oleh st.cache_data
+        _gj_json = json.dumps(_gj_data)
+        _df_json = df[[KOLOM_WILAYAH, 'label_cluster']].to_json()
+        _peta_html, _info = _buat_peta_html(_gj_json, _df_json)
+        if _peta_html is None:
             st.warning(f"⚠️ {_info}")
         else:
             if _info:
                 st.info(_info)
-            components.html(_peta._repr_html_(), height=500, scrolling=False)
+            components.html(_peta_html, height=500, scrolling=False)
 
 st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
