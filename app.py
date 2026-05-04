@@ -39,11 +39,11 @@ st.set_page_config(
     page_title="Dashboard Klasterisasi Tenaga Kesehatan Jawa Barat",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="collapsed"   # sidebar dilipat karena tidak dipakai
+    initial_sidebar_state="collapsed"
 )
 
 # ─────────────────────────────────────────────────────────────
-# CSS GLOBAL  (tidak diubah, hanya ditambah badge baru)
+# CSS GLOBAL
 # ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -73,6 +73,10 @@ st.markdown("""
         padding:0.8rem 1rem 0.4rem; margin-bottom:1rem;
     }
     footer { text-align:center; color:#888; font-size:0.82rem; margin-top:2rem; }
+    iframe {
+        margin-bottom: -1rem !important;
+    }
+    .spacer-sm { margin-top: 0.5rem; margin-bottom: 0.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,12 +105,11 @@ STANDAR_NASIONAL = {
     'rasio_gizi'             : 18
 }
 
-# ── 4 warna untuk 4 klaster (urutan: Rendah → Sangat Tinggi) ──
 WARNA_KLASTER = {
-    'Rendah'       : '#C44E52',   # merah
-    'Sedang'       : '#DD8452',   # oranye
-    'Tinggi'       : '#55A868',   # hijau
-    'Sangat Tinggi': '#4C72B0',   # biru
+    'Rendah'       : '#C44E52',
+    'Sedang'       : '#DD8452',
+    'Tinggi'       : '#55A868',
+    'Sangat Tinggi': '#4C72B0',
 }
 URUTAN_LABEL = ['Rendah', 'Sedang', 'Tinggi', 'Sangat Tinggi']
 IKON_LABEL   = {
@@ -131,7 +134,7 @@ BADGE_CSS = {
 KOLOM_WILAYAH = 'Kabupaten_Kota'
 
 # ─────────────────────────────────────────────────────────────
-# FUNGSI LOAD DATA & MODEL  (tidak diubah)
+# FUNGSI LOAD DATA & MODEL
 # ─────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data(path='dataset_clustered.csv'):
@@ -171,24 +174,19 @@ model, scaler = load_artifacts()
 meta          = load_metadata()
 LABEL_MAP     = meta.get('label_map', {})
 
-# ── Pastikan kolom label_cluster ada & menggunakan 4 label ──
 def buat_label_4(df_in):
-    """Mapping cluster → label 4 tingkat berdasarkan rata-rata rasio (terendah→tertinggi)."""
     rata = df_in.groupby('cluster')[FITUR_RASIO].mean().sum(axis=1)
-    rank = rata.rank(ascending=True).astype(int)   # rank 1 = terendah = Rendah
+    rank = rata.rank(ascending=True).astype(int)
     return {c: URUTAN_LABEL[r - 1] for c, r in rank.items()}
 
-# Paksa rebuild jika label tidak sesuai 4 level
 if 'label_cluster' not in df.columns or \
         not set(df['label_cluster'].dropna().unique()).issubset(set(URUTAN_LABEL)):
     LABEL_MAP = buat_label_4(df)
     df['label_cluster'] = df['cluster'].map(LABEL_MAP)
 
-# ── Pastikan nama kolom wilayah benar ──
 if KOLOM_WILAYAH not in df.columns:
     KOLOM_WILAYAH = df.columns[0]
 
-# ── Hitung X_scaled untuk PCA ──
 if scaler is not None:
     X_scaled = scaler.transform(df[FITUR_RASIO])
 else:
@@ -206,7 +204,6 @@ st.markdown('<div class="sub-judul">Analisis Disparitas Rasio Tenaga Kesehatan P
             unsafe_allow_html=True)
 st.markdown("---")
 
-# ── [TAMBAHAN] Penjelasan Umum Dashboard ──
 st.info(
     "**Selamat datang di Dashboard Klasterisasi Tenaga Kesehatan Jawa Barat! 👋**\n\n"
     "Dashboard ini membantu Anda memahami **seberapa merata ketersediaan tenaga kesehatan** "
@@ -227,12 +224,11 @@ st.markdown(
 )
 
 # ─────────────────────────────────────────────────────────────
-# METRIC SUMMARY  — 4 klaster + total = 5 kolom
+# METRIC SUMMARY
 # ─────────────────────────────────────────────────────────────
 st.markdown('<div class="section-head">📊 Ringkasan Klasterisasi (k = 4)</div>',
             unsafe_allow_html=True)
 
-# ── [TAMBAHAN] Penjelasan Klasterisasi ──
 st.markdown(
     """
     **Apa itu klaster?** Klaster adalah hasil pengelompokan wilayah berdasarkan kemiripan
@@ -250,31 +246,15 @@ mc3.metric("🟠 Sedang",         f"{cnt.get('Sedang', 0)} wilayah")
 mc4.metric("🟢 Tinggi",         f"{cnt.get('Tinggi', 0)} wilayah")
 mc5.metric("🔵 Sangat Tinggi",  f"{cnt.get('Sangat Tinggi', 0)} wilayah")
 
-# ── [TAMBAHAN] Konteks ringkasan ──
 st.caption(
     "Angka di atas menunjukkan jumlah kabupaten/kota yang masuk ke masing-masing kelompok. "
     "Semakin banyak wilayah di klaster Rendah, semakin besar ketimpangan yang perlu diatasi."
 )
 
 # ─────────────────────────────────────────────────────────────
-# PETA CHOROPLETH — DISTRIBUSI KLASTER JAWA BARAT
-#
-# Dependensi tambahan (jalankan satu kali):
-#   pip install folium streamlit-folium requests
-#
-# GeoJSON:
-#   Simpan file batas wilayah kabupaten/kota Jawa Barat sebagai
-#   'jabar.geojson' di folder yang sama dengan app.py.
-#   Atau biarkan kosong — kode akan mengunduh otomatis dari
-#   sumber publik (butuh koneksi internet).
-#
-#   Sumber yang direkomendasikan:
-#   https://github.com/superpikar/indonesia-geojson
-#   (unduh indonesia-kab.json, rename → jabar.geojson, ATAU
-#    biarkan kode mengunduh & memfilter otomatis)
+# PETA CHOROPLETH
 # ─────────────────────────────────────────────────────────────
 
-# ── Warna peta (sama dengan WARNA_KLASTER) ──
 _WARNA_PETA = {
     'Rendah'       : '#C44E52',
     'Sedang'       : '#DD8452',
@@ -282,7 +262,6 @@ _WARNA_PETA = {
     'Sangat Tinggi': '#4C72B0',
 }
 
-# ── Kunci properti GeoJSON yang akan dicoba untuk nama wilayah ──
 _NAME_KEYS = [
     'Kabupaten', 'KABUPATEN', 'name', 'Name', 'NAME',
     'nama', 'Nama', 'NAMA', 'WADMKK', 'KABKOT',
@@ -292,12 +271,6 @@ _NAME_KEYS = [
 
 @st.cache_data(show_spinner=False)
 def _muat_geojson():
-    """
-    Coba muat GeoJSON dari file lokal terlebih dahulu.
-    Jika tidak ada, unduh dari sumber publik dan filter Jawa Barat.
-    Mengembalikan (geojson_dict | None, pesan_error | None).
-    """
-    # 1. File lokal
     if os.path.exists('jabar.geojson'):
         try:
             with open('jabar.geojson', 'r', encoding='utf-8') as f:
@@ -305,7 +278,6 @@ def _muat_geojson():
         except Exception as e:
             return None, f"Gagal membaca jabar.geojson: {e}"
 
-    # 2. Unduh otomatis
     try:
         import requests
     except ImportError:
@@ -314,12 +286,9 @@ def _muat_geojson():
             "Jalankan: `pip install requests`"
         )
 
-    # Daftar URL yang akan dicoba (prioritas dari atas)
     urls = [
-        # Kabupaten/kota seluruh Indonesia dari superpikar
         'https://raw.githubusercontent.com/superpikar/indonesia-geojson/'
         'master/indonesia-kab.json',
-        # Alternatif dari ans-4175
         'https://raw.githubusercontent.com/ans-4175/peta-indonesia-geojson/'
         'master/jawa_barat/jawa-barat-kabupaten.min.json',
     ]
@@ -331,21 +300,18 @@ def _muat_geojson():
             raw = resp.json()
             feats = raw.get('features', [])
 
-            # Filter hanya fitur Jawa Barat
             jabar = []
             for feat in feats:
                 props = feat.get('properties', {})
                 prov  = ' '.join(str(v) for v in props.values()).upper()
-                # Masukkan jika mengandung penanda Jawa Barat,
-                # atau jika file sudah spesifik Jawa Barat (ans-4175)
                 if ('JAWA BARAT' in prov or 'WEST JAVA' in prov
                         or 'ans-4175' in url):
                     jabar.append(feat)
 
-            if len(jabar) >= 20:   # minimal 20 dari 27 kab/kota
+            if len(jabar) >= 20:
                 return {'type': 'FeatureCollection', 'features': jabar}, None
         except Exception:
-            continue  # coba URL berikutnya
+            continue
 
     return None, (
         "**GeoJSON tidak dapat dimuat secara otomatis.**\n\n"
@@ -360,24 +326,7 @@ def _muat_geojson():
     )
 
 
-# ── 27 Kabupaten/Kota Jawa Barat (nama persis sesuai dataset) ──
-# Format: Kabupaten → nama saja (tanpa prefix)
-#         Kota      → "Kota Xxx"
-_WILAYAH_JABAR_27 = [
-    # 18 Kabupaten
-    'Bogor', 'Sukabumi', 'Cianjur', 'Bandung', 'Garut',
-    'Tasikmalaya', 'Ciamis', 'Kuningan', 'Cirebon', 'Majalengka',
-    'Sumedang', 'Indramayu', 'Subang', 'Purwakarta', 'Karawang',
-    'Bekasi', 'Bandung Barat', 'Pangandaran',
-    # 9 Kota
-    'Kota Bogor', 'Kota Sukabumi', 'Kota Bandung', 'Kota Cirebon',
-    'Kota Bekasi', 'Kota Depok', 'Kota Cimahi', 'Kota Tasikmalaya',
-    'Kota Banjar',
-]
-
-
 def _clean(s):
-    """Bersihkan string: uppercase, hapus non-alfanumerik, normalisasi spasi."""
     s = str(s).upper().strip()
     s = re.sub(r'[^A-Z0-9\s]', ' ', s)
     s = re.sub(r'\s+', ' ', s).strip()
@@ -385,36 +334,18 @@ def _clean(s):
 
 
 def _buat_lookup(df_kl):
-    """
-    Bangun tabel lookup komprehensif:
-      normalized_geojson_name (str) → (df_exact_name, label_cluster)
-
-    Dataset memakai konvensi:
-      • Kabupaten : nama inti saja, mis. "Bogor", "Bandung Barat"
-      • Kota      : "Kota Xxx", mis. "Kota Bogor", "Kota Bandung"
-
-    GeoJSON bisa memakai berbagai format, mis.:
-      • "KABUPATEN BOGOR", "KAB. BOGOR", "BOGOR"  → cocok ke "Bogor"
-      • "KOTA BOGOR"                               → cocok ke "Kota Bogor"
-      • "KABUPATEN BANDUNG BARAT"                  → cocok ke "Bandung Barat"
-      • "KOTA BANDUNG"                             → cocok ke "Kota Bandung"
-    """
-    lookup = {}   # key (uppercase str) → (df_name, klaster)
-
+    lookup = {}
     for _, row in df_kl.iterrows():
         df_name = str(row[KOLOM_WILAYAH]).strip()
         klstr   = row['label_cluster']
         upper   = _clean(df_name)
         is_kota = upper.startswith('KOTA ')
-        core    = upper[5:].strip() if is_kota else upper   # nama inti
+        core    = upper[5:].strip() if is_kota else upper
 
         if is_kota:
-            # "Kota Bogor" → cocok ke "KOTA BOGOR"
             for key in [upper, 'KOTA ' + core]:
                 lookup[key] = (df_name, klstr)
         else:
-            # "Bogor" → cocok ke "BOGOR", "KABUPATEN BOGOR",
-            #           "KAB BOGOR", "KAB  BOGOR", "KABBOGOR" dst.
             for key in [
                 core,
                 'KABUPATEN ' + core,
@@ -427,43 +358,30 @@ def _buat_lookup(df_kl):
 
 
 def _cocokkan_nama(raw_gj, lookup):
-    """
-    Cocokkan satu nama GeoJSON ke entry di lookup.
-    Strategi (berhenti di kecocokan pertama):
-      1. Exact match setelah _clean()
-      2. Buang semua prefix KAB(UPATEN)/KAB lalu exact match
-      3. Tambah 'KOTA' lalu cari cocok (untuk GeoJSON yang sudah buang 'KOTA')
-      4. Substring match pada core name
-    """
     cleaned = _clean(raw_gj)
 
-    # Tahap 1: exact
     if cleaned in lookup:
         return lookup[cleaned]
 
-    # Tahap 2: strip prefix KABUPATEN / KAB
     core = re.sub(r'^(KABUPATEN|KAB\.?)\s+', '', cleaned).strip()
     if core in lookup:
         return lookup[core]
     if 'KABUPATEN ' + core in lookup:
         return lookup['KABUPATEN ' + core]
 
-    # Tahap 3: coba tempelkan KOTA di depan core (GeoJSON tanpa prefix)
     if 'KOTA ' + core in lookup:
         return lookup['KOTA ' + core]
 
-    # Tahap 4: substring — core GeoJSON ⊆ core df  atau  core df ⊆ core GeoJSON
     for key, val in lookup.items():
         key_core = re.sub(r'^(KABUPATEN|KAB\.?|KOTA)\s+', '', key).strip()
         if key_core and core and (key_core == core
                 or key_core in core or core in key_core):
             return val
 
-    return None   # tidak ketemu
+    return None
 
 
 def _deteksi_key_nama(gj_data):
-    """Deteksi otomatis kunci nama wilayah dalam properti GeoJSON."""
     if not gj_data.get('features'):
         return None
     sample = gj_data['features'][0].get('properties', {})
@@ -477,19 +395,13 @@ def _deteksi_key_nama(gj_data):
 
 
 def _buat_peta(gj_data, df_kl):
-    """
-    Buat objek folium.Map dengan choropleth klaster.
-    Mengembalikan (folium.Map | None, pesan_error | None).
-    """
     name_key = _deteksi_key_nama(gj_data)
     if name_key is None:
         return None, "Tidak dapat mendeteksi kunci nama wilayah dalam GeoJSON."
 
     lookup = _buat_lookup(df_kl)
 
-    matched_names = []   # untuk debugging
     unmatched_names = []
-
     matched, unmatched = 0, 0
     for feat in gj_data['features']:
         raw    = feat['properties'].get(name_key, '')
@@ -498,7 +410,6 @@ def _buat_peta(gj_data, df_kl):
         if result:
             df_nm, klstr = result
             matched += 1
-            matched_names.append(f"{raw} → {df_nm}")
         else:
             df_nm  = raw
             klstr  = None
@@ -507,10 +418,8 @@ def _buat_peta(gj_data, df_kl):
 
         feat['properties']['_klaster'] = klstr or '—'
         feat['properties']['_warna']   = _WARNA_PETA.get(klstr, '#CCCCCC')
-        # Tampilkan nama dari dataset jika cocok, fallback ke nama GeoJSON
         feat['properties']['_wilayah'] = df_nm
 
-    # Buat peta — terpusat di Jawa Barat
     m = folium.Map(
         location=[-6.90, 107.55],
         zoom_start=8,
@@ -545,7 +454,6 @@ def _buat_peta(gj_data, df_kl):
         ),
     ).add_to(m)
 
-    # ── Legend ──
     legend_html = """
     <div style="
         position : fixed;
@@ -591,13 +499,12 @@ def _buat_peta(gj_data, df_kl):
 
 
 # ── Tampilkan seksi peta ──
-st.markdown("---")
+st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="section-head">🗺️ Peta Distribusi Klaster Kabupaten/Kota Jawa Barat</div>',
     unsafe_allow_html=True
 )
 
-# ── [TAMBAHAN] Penjelasan Peta ──
 st.markdown(
     """
     Peta di bawah ini menampilkan **sebaran kondisi tenaga kesehatan** di seluruh
@@ -619,12 +526,6 @@ st.markdown(
     - 🔵 **Biru (Klaster Sangat Tinggi)** → Wilayah dengan **konsentrasi tenaga kesehatan sangat tinggi**
       (potensi surplus relatif)
     - ⬜ **Abu-abu** → Data tidak tersedia atau tidak teridentifikasi pada peta
-
-    **Interpretasi penting:**
-    - Wilayah yang berdekatan dengan warna berbeda menunjukkan adanya **ketimpangan spasial**
-      dalam distribusi tenaga kesehatan
-    - Dominasi warna merah di suatu area menandakan **wilayah prioritas intervensi**
-    - Konsentrasi warna biru menunjukkan **penumpukan tenaga kesehatan di wilayah tertentu**
 
     💡 *Arahkan kursor ke wilayah untuk melihat nama kabupaten/kota dan klasternya secara detail.*
     """
@@ -664,10 +565,10 @@ else:
                     "install: `pip install streamlit-folium`"
                 )
 
-st.markdown("---")
+st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────
-# TAB NAVIGASI  — 4 tab (Scatter+Tabel digabung)
+# TAB NAVIGASI
 # ─────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4 = st.tabs([
     "🔵 Scatter Plot & Tabel",
@@ -677,14 +578,13 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # ══════════════════════════════════════════════════════════════
-# TAB 1 — SCATTER PLOT + TABEL DATA (digabung, filter dari atas)
+# TAB 1 — SCATTER PLOT + TABEL DATA
 # ══════════════════════════════════════════════════════════════
 with tab1:
 
     st.markdown('<div class="section-head">Scatter Plot Klaster K-Means — PCA 2D</div>',
                 unsafe_allow_html=True)
 
-    # ── [TAMBAHAN] Penjelasan Scatter Plot & PCA ──
     st.info(
         "**Apa yang ditampilkan grafik ini?**\n\n"
         "Grafik ini memperlihatkan posisi setiap kabupaten/kota berdasarkan "
@@ -700,7 +600,6 @@ with tab1:
         "- Wilayah yang **berjauhan** di grafik artinya kondisi tenaga kesehatannya sangat berbeda"
     )
 
-    # 🔎 FILTER KHUSUS TAB 1
     semua_label = [l for l in URUTAN_LABEL if l in df['label_cluster'].unique()]
 
     pilih_cluster = st.multiselect(
@@ -710,7 +609,6 @@ with tab1:
         help="Filter hanya untuk Scatter Plot & Tabel"
     )
 
-    # ✅ FILTER DATA DI SINI
     df_filtered = df[df['label_cluster'].isin(pilih_cluster)].copy()
     pca   = PCA(n_components=2, random_state=42)
     X_pca = pca.fit_transform(X_scaled)
@@ -751,7 +649,6 @@ with tab1:
     ax.set_xlabel(f"PC1 ({expl[0]*100:.1f}%)")
     ax.set_ylabel(f"PC2 ({expl[1]*100:.1f}%)")
 
-    # Legend diurutkan sesuai URUTAN_LABEL
     handles_leg, labels_leg = ax.get_legend_handles_labels()
     order = {f"Klaster {l}": i for i, l in enumerate(URUTAN_LABEL)}
     paired = sorted(zip(labels_leg, handles_leg), key=lambda x: order.get(x[0], 99))
@@ -766,7 +663,6 @@ with tab1:
     st.pyplot(fig)
     plt.close()
 
-    # ── [TAMBAHAN] Catatan bawah scatter plot ──
     st.caption(
         f"Dua sumbu grafik (PC1 & PC2) bersama-sama menjelaskan "
         f"{sum(expl)*100:.1f}% dari total variasi data — "
@@ -775,11 +671,9 @@ with tab1:
 
     st.markdown("---")
 
-    # ── Tabel Data (dalam tab yang sama) ──
     st.markdown('<div class="section-head">Tabel Data Wilayah</div>',
                 unsafe_allow_html=True)
 
-    # ── [TAMBAHAN] Penjelasan Tabel & Rasio ──
     st.markdown(
         """
         Tabel di bawah menampilkan data lengkap setiap kabupaten/kota beserta
@@ -791,9 +685,6 @@ with tab1:
         Misalnya, rasio dokter umum = 30 artinya ada **30 dokter umum**
         untuk melayani setiap 100.000 penduduk di wilayah tersebut.
         Semakin besar angkanya, semakin baik ketersediaannya.
-
-        Warna pada kolom **Klaster** menunjukkan kategori masing-masing wilayah —
-        merah untuk Rendah, oranye untuk Sedang, hijau untuk Tinggi, biru untuk Sangat Tinggi.
         """
     )
 
@@ -829,7 +720,6 @@ with tab2:
     st.markdown('<div class="section-head">Rata-rata Rasio Tenaga Kesehatan per Klaster</div>',
                 unsafe_allow_html=True)
 
-    # ── [TAMBAHAN] Penjelasan Bar Chart ──
     st.info(
         "**Apa yang ditampilkan grafik ini?**\n\n"
         "Grafik batang (bar chart) ini membandingkan rata-rata ketersediaan "
@@ -838,9 +728,7 @@ with tab2:
         "- Jenis tenaga kesehatan mana yang paling berbeda antar klaster\n"
         "- Apakah perbedaan antar klaster besar atau kecil untuk setiap jenis\n\n"
         "**Cara membacanya:** Setiap kelompok batang mewakili satu jenis tenaga kesehatan. "
-        "Batang yang lebih tinggi = rata-rata lebih banyak tenaga kesehatan di klaster tersebut. "
-        "Bandingkan tinggi batang merah 🔴, oranye 🟠, hijau 🟢, dan biru 🔵 "
-        "untuk melihat seberapa besar kesenjangan antar klaster."
+        "Batang yang lebih tinggi = rata-rata lebih banyak tenaga kesehatan di klaster tersebut."
     )
 
     rata_cluster  = df.groupby('label_cluster')[FITUR_RASIO].mean()
@@ -871,19 +759,15 @@ with tab2:
     st.pyplot(fig)
     plt.close()
 
-    # ── [TAMBAHAN] Catatan bawah bar chart ──
     st.caption(
         "Sumbu vertikal (Y) menunjukkan rasio per 100.000 penduduk — "
         "semakin tinggi batang, semakin banyak tenaga kesehatan relatif terhadap jumlah penduduk."
     )
 
     st.markdown("**Tabel Rata-rata Rasio per Klaster:**")
-
-    # ── [TAMBAHAN] Penjelasan tabel rata-rata ──
     st.markdown(
         "Tabel di bawah menyajikan angka pasti dari grafik di atas. "
-        "Gradasi warna dari kuning ke merah menunjukkan nilai dari rendah ke tinggi — "
-        "warna lebih tua berarti nilai lebih besar."
+        "Gradasi warna dari kuning ke merah menunjukkan nilai dari rendah ke tinggi."
     )
 
     df_rata         = rata_cluster.loc[urutan_ada, FITUR_RASIO].round(2).copy()
@@ -898,14 +782,13 @@ with tab3:
     st.markdown('<div class="section-head">Perbandingan Rasio dengan Standar Nasional</div>',
                 unsafe_allow_html=True)
 
-    # ── [TAMBAHAN] Penjelasan Standar Nasional ──
     st.info(
         "**Apa itu Standar Nasional?**\n\n"
         "Standar Nasional adalah angka minimum tenaga kesehatan yang **seharusnya** tersedia "
         "untuk setiap 100.000 penduduk, sesuai dengan kebijakan pemerintah Indonesia "
         "(Keputusan Menko Kesra No. 54 Tahun 2013). "
         "Angka ini menjadi tolok ukur apakah sebuah wilayah sudah terpenuhi kebutuhan "
-        "tenaga kesehatannya atau belum.\n\n"
+        "tenaga kesehatannya atau belum."
     )
 
     st.caption("Standar: Keputusan Menko Kesra No. 54 Tahun 2013")
@@ -916,14 +799,11 @@ with tab3:
         format_func=lambda x: LABEL_FITUR[FITUR_RASIO.index(x)]
     )
 
-    # ── [TAMBAHAN] Penjelasan cara baca grafik standar nasional ──
     st.markdown(
         f"""
         **Cara membaca grafik ini:**
-        - Setiap **batang horizontal** mewakili satu kabupaten/kota,
-          panjangnya menunjukkan jumlah tenaga kesehatan yang tersedia
-        - **Garis merah putus-putus** adalah batas standar nasional —
-          wilayah yang batangnya **tidak mencapai garis ini** berarti masih kekurangan
+        - Setiap **batang horizontal** mewakili satu kabupaten/kota
+        - **Garis merah putus-putus** adalah batas standar nasional
         - **Garis biru titik-titik** adalah rata-rata seluruh Jawa Barat
         - Warna batang mengikuti klaster wilayah tersebut
         """
@@ -959,10 +839,7 @@ with tab3:
     plt.close()
 
     st.markdown("**Gap Rata-rata Klaster terhadap Standar Nasional:**")
-
-    # ── [TAMBAHAN] Penjelasan tabel gap ──
     st.markdown(
-        "Tabel berikut merangkum seberapa jauh rata-rata setiap klaster dari standar nasional. "
         "Kolom **Gap** bertanda positif (✅) berarti sudah memenuhi standar, "
         "sedangkan negatif (⚠️) berarti masih ada kekurangan yang perlu dikejar."
     )
@@ -981,13 +858,12 @@ with tab3:
     st.dataframe(df_gap, use_container_width=True, hide_index=True)
 
 # ══════════════════════════════════════════════════════════════
-# TAB 4 — DETAIL WILAYAH  (dropdown wilayah di dalam tab ini)
+# TAB 4 — DETAIL WILAYAH
 # ══════════════════════════════════════════════════════════════
 with tab4:
     st.markdown('<div class="section-head">Detail Wilayah Terpilih</div>',
                 unsafe_allow_html=True)
 
-    # ── [TAMBAHAN] Penjelasan Tab Detail ──
     st.markdown(
         """
         Di sini Anda bisa melihat **profil lengkap satu kabupaten/kota** secara mendalam —
@@ -998,7 +874,6 @@ with tab4:
         """
     )
 
-    # Dropdown wilayah hanya ada di tab ini
     daftar_wilayah = sorted(df[KOLOM_WILAYAH].dropna().tolist())
     pilih_wilayah  = st.selectbox(
         "🗺️ Pilih Kabupaten/Kota:",
@@ -1007,14 +882,7 @@ with tab4:
     )
 
     if pilih_wilayah == "— Pilih Wilayah —":
-        # Tampilkan daftar anggota tiap klaster jika belum memilih
         st.info("Pilih kabupaten/kota di atas untuk melihat detail profil rasio wilayah tersebut.")
-
-        # ── [TAMBAHAN] Penjelasan daftar anggota klaster ──
-        st.markdown(
-            "Sambil menunggu, berikut daftar lengkap anggota setiap klaster. "
-            "Klik nama wilayah di dropdown di atas untuk melihat detail profilnya."
-        )
 
         st.markdown("**Daftar Anggota Setiap Klaster:**")
 
@@ -1040,18 +908,15 @@ with tab4:
             unsafe_allow_html=True
         )
 
-        # ── [TAMBAHAN] Konteks kartu metrik ──
         st.markdown(
             "Kartu-kartu di bawah menampilkan angka rasio untuk 6 jenis tenaga kesehatan utama "
             "pada wilayah yang dipilih, beserta perbandingannya dengan **standar nasional**.\n\n"
             "**Cara membaca:**\n"
             "- Angka utama menunjukkan rasio tenaga kesehatan di wilayah tersebut\n"
-            "- Nilai **standar (Standar)** ditampilkan sebagai acuan kebutuhan minimum\n"
             "- **Hijau (↑)** berarti sudah **melampaui standar**\n"
             "- **Merah (↓)** berarti **masih di bawah standar**"
-)
+        )
 
-        # Metric per jenis nakes
         metrics = [
             ('Dokter Umum',      'rasio_dokter_umum',      50),
             ('Perawat',          'rasio_perawat',           200),
@@ -1064,27 +929,16 @@ with tab4:
         for idx, (nama, fitur, std_n) in enumerate(metrics):
             val   = row[fitur]
             delta = round(val - std_n, 2)
-            # st.metric mewarnai delta berdasarkan apakah string diawali "-".
-            # Format "Std:… | Δ…" tidak diawali "-" meski nilainya negatif,
-            # sehingga warna selalu hijau. Solusi: gunakan delta_color="inverse"
-            # saat delta negatif — Streamlit membalik warna menjadi merah.
-            delta_color = "normal"
             [c1, c2, c3][idx % 3].metric(
                 f"{nama} (Standar: {std_n})",
                 f"{val:.2f}",
                 f"{delta:+.2f}",
-                delta_color=delta_color,
             )
 
-        # Bar chart profil wilayah
         st.markdown("**Profil Rasio vs Standar Nasional:**")
-
-        # ── [TAMBAHAN] Penjelasan grafik profil wilayah ──
         st.caption(
             f"Grafik berikut membandingkan angka tenaga kesehatan di {pilih_wilayah} "
-            "(batang berwarna) dengan standar nasional (batang abu-abu) untuk setiap jenis. "
-            "Jika batang berwarna lebih pendek dari batang abu-abu, "
-            "artinya jenis tenaga kesehatan tersebut masih kurang di wilayah ini."
+            "(batang berwarna) dengan standar nasional (batang abu-abu) untuk setiap jenis."
         )
 
         fig, ax = plt.subplots(figsize=(12, 5))
@@ -1108,16 +962,11 @@ with tab4:
         st.pyplot(fig)
         plt.close()
 
-        # Tabel lengkap
         st.markdown("**Tabel Nilai Lengkap:**")
-
-        # ── [TAMBAHAN] Penjelasan tabel lengkap wilayah ──
         st.caption(
             "Tabel ini memuat semua 9 jenis tenaga kesehatan beserta angka rasio, "
             "standar nasional, dan selisihnya (Gap). "
-            "Gap berwarna hijau = memenuhi standar; merah = masih kurang. "
-            "Gunakan tabel ini untuk mengetahui jenis tenaga kesehatan mana yang "
-            "paling perlu ditingkatkan di wilayah ini."
+            "Gap berwarna hijau = memenuhi standar; merah = masih kurang."
         )
 
         df_det = pd.DataFrame({
@@ -1140,7 +989,7 @@ with tab4:
         )
 
 # ─────────────────────────────────────────────────────────────
-# FOOTER  (tidak diubah)
+# FOOTER
 # ─────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("""
