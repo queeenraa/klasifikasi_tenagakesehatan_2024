@@ -73,8 +73,20 @@ st.markdown("""
         padding:0.8rem 1rem 0.4rem; margin-bottom:1rem;
     }
     footer { text-align:center; color:#888; font-size:0.82rem; margin-top:2rem; }
-    iframe {
-        margin-bottom: -1rem !important;
+
+    /* Hapus jeda di bawah peta folium */
+    iframe { margin-bottom: 0 !important; }
+    [data-testid="stCustomComponentV1"] {
+        margin-bottom: -2rem !important;
+        line-height: 0 !important;
+    }
+    [data-testid="stCustomComponentV1"] iframe {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .element-container:has(iframe) {
+        margin-bottom: -2rem !important;
     }
     .spacer-sm { margin-top: 0.5rem; margin-bottom: 0.5rem; }
 </style>
@@ -558,8 +570,10 @@ else:
                     returned_objects=[],
                     key="peta_jabar",
                 )
+                st.markdown('<div style="margin-top:-3rem;display:block;"></div>', unsafe_allow_html=True)
             else:
                 components.html(_peta._repr_html_(), height=520, scrolling=False)
+                st.markdown('<div style="margin-top:-3rem;display:block;"></div>', unsafe_allow_html=True)
                 st.caption(
                     "💡 Untuk tampilan interaktif yang lebih baik, "
                     "install: `pip install streamlit-folium`"
