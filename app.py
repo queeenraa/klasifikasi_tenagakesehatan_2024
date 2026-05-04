@@ -562,22 +562,7 @@ else:
         else:
             if _info:
                 st.info(_info)
-            if _ST_FOLIUM_OK:
-                st_folium(
-                    _peta,
-                    width  ="100%",
-                    height =500,
-                    returned_objects=[],
-                    key="peta_jabar",
-                )
-                st.markdown('<div style="margin-top:-3rem;display:block;"></div>', unsafe_allow_html=True)
-            else:
-                components.html(_peta._repr_html_(), height=520, scrolling=False)
-                st.markdown('<div style="margin-top:-3rem;display:block;"></div>', unsafe_allow_html=True)
-                st.caption(
-                    "💡 Untuk tampilan interaktif yang lebih baik, "
-                    "install: `pip install streamlit-folium`"
-                )
+            components.html(_peta._repr_html_(), height=500, scrolling=False)
 
 st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
